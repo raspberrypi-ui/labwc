@@ -142,8 +142,8 @@ output_destroy_notify(struct wl_listener *listener, void *data)
 	 */
 	free(output);
 
-	if (wl_list_length(&server->outputs) == 0) {
-		output_add_virtual(server, "VIRTUAL");
+	if (server->fallback_output && wl_list_length(&server->outputs) == 0) {
+		output_add_virtual(server, "HEADLESS");
 	}
 }
 
@@ -199,7 +199,7 @@ static int
 handle_virtual_output_destroy_timeout(void *data)
 {
 	struct server *server = data;
-	output_remove_virtual(server, "VIRTUAL");
+	output_remove_virtual(server, "HEADLESS");
 	wl_event_source_remove(server->destroy_timeout);
 	server->destroy_timeout = NULL;
 	return 0;
@@ -369,7 +369,7 @@ new_output_notify(struct wl_listener *listener, void *data)
 	do_output_layout_change(server);
 	seat_output_layout_changed(&output->server->seat);
 
-	if (wl_list_length(&server->outputs) > 1) {
+	if (server->fallback_output && wl_list_length(&server->outputs) > 1) {
 		/* libwayland has a bug when a global is created and
 		 * immediately destroyed, as clients don't have enough time
 		 * to bind it, so the virtual output is destroyed on a timer.
@@ -416,8 +416,13 @@ output_init(struct server *server)
 
 	output_manager_init(server);
 
-	output_add_virtual(server, "VIRTUAL");
-	server->destroy_timeout = NULL;
+	if (getenv("LABWC_FALLBACK_OUTPUT")) {
+		output_add_virtual(server, "HEADLESS");
+		server->destroy_timeout = NULL;
+		server->fallback_output = true;
+	} else {
+		server->fallback_output = false;
+	}
 }
 
 static void
