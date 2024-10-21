@@ -177,8 +177,16 @@ handle_configure_timeout(void *data)
 	view->pending_configure_serial = 0;
 	view->pending_configure_timeout = NULL;
 
-	view_impl_apply_geometry(view,
-		view->current.width, view->current.height);
+	// Don't use view_impl_apply_geometry() because the change we're
+	// making here is not resizing, and its heuristics erroneously detect
+	// resizing sometimes and cause weird results
+	bool moved = view->current.x != view->pending.x ||
+		view->current.y != view->pending.y;
+	view->current.x = view->pending.x;
+	view->current.y = view->pending.y;
+	if (moved) {
+		view_moved(view);
+	}
 
 	/* Re-sync pending view with current state */
 	snap_constraints_update(view);
